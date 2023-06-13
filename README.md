@@ -61,11 +61,14 @@ Your task is to add a new feature to the app that retrieves and displays the cur
 
 ## Submission Process
 
-1. You won't have push permissions on the repo, so you'll need to commit to main branch, and send us the commit diffs via patch.
+1. Commit your changes as if you were working on a regular project. Have in mind you won't be able to push to origin.
 
-You can do this following instructions on this article
-https://thoughtbot.com/blog/send-a-patch-to-someone-using-git-format-patch
+2. Create a git patch running the following command:
 
-2. Send the generated patch file as an email attachment to [codesubmissions@itsacheckmate.com](mailto:codesubmissions@itsacheckmate.com) with the subject line "WeatherApp Code Submission - Your Full Name". Replace "Your Full Name" with your actual full name.
+`$ git format-patch origin/main`
+
+This should generate one patch file per commit per commit added. If you have any concern regarding git patch, you can take a look at https://thoughtbot.com/blog/send-a-patch-to-someone-using-git-format-patch
+
+3. Send the generated patch file/files as an email attachment to [codesubmissions@itsacheckmate.com](mailto:codesubmissions@itsacheckmate.com) with the subject line "WeatherApp Code Submission - Your Full Name". Replace "Your Full Name" with your actual full name.
 
 We'll review your submission and get back to you with feedback. Good luck!
