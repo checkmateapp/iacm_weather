@@ -9,17 +9,15 @@ New Weather is a simple Ruby on Rails application that shows the 7-day weather f
 
 ## Setup
 
-1. Fork the repository by clicking the "Fork" button at the top-right corner of the repository page on GitHub.
+2. Clone our demo app repository:
 
-2. Clone your forked repository:
-
-`$ git clone https://github.com/yourusername/WeatherApp.git`
+`$ git clone https://github.com/checkmateapp/iacm_weather`
 
 3. Change into the app directory:
 
-`$ cd new_weather`
+`$ cd iacm_weather`
 
-4. Install the required gems:
+4. Make sure you have the right Ruby version, and then install the required gems:
 
 `$ bundle install`
 
@@ -28,9 +26,13 @@ New Weather is a simple Ruby on Rails application that shows the 7-day weather f
 - Sign up for a free account at [https://home.openweathermap.org/users/sign_up](https://home.openweathermap.org/users/sign_up).
 - After signing in, go to the [API keys section](https://home.openweathermap.org/api_keys) and create a new API key.
 
-6. Add your OpenWeatherMap API key to `config/credentials.yml.enc`:
+6. Delete existing credentials
 
-`$ EDITOR="your_editor" rails credentials:edit`
+`$ rm config/credentials.yml.enc`
+
+7. Create a new credentials file and add your OpenWeatherMap API key:
+
+`$ EDITOR="<your_editor>" rails credentials:edit`
 
 Add the following content and replace `YOUR_API_KEY` with your API key:
 
@@ -59,26 +61,11 @@ Your task is to add a new feature to the app that retrieves and displays the cur
 
 ## Submission Process
 
-1. Commit your changes to a new branch:
+1. You won't have push permissions on the repo, so you'll need to commit to main branch, and send us the commit diffs via patch.
 
-```bash
-git checkout -b your_feature_branch
-git add .
-git commit -m "Add current conditions feature"
-```
+You can do this following instructions on this article
+https://thoughtbot.com/blog/send-a-patch-to-someone-using-git-format-patch
 
-2. Push your changes to your forked repository:
-
-```bash
-git push origin your_feature_branch
-```
-
-3. Create a tar.gz archive of the project folder, excluding any unnecessary files (e.g., .git, node_modules, etc.):
-
-```bash
-tar -czvf WeatherApp.tar.gz WeatherApp --exclude=.git --exclude=node_modules
-```
-
-4. Send the zip file as an email attachment to [codesubmissions@itsacheckmate.com](mailto:codesubmissions@itsacheckmate.com) with the subject line "WeatherApp Code Submission - Your Full Name". Replace "Your Full Name" with your actual full name.
+2. Send the generated patch file as an email attachment to [codesubmissions@itsacheckmate.com](mailto:codesubmissions@itsacheckmate.com) with the subject line "WeatherApp Code Submission - Your Full Name". Replace "Your Full Name" with your actual full name.
 
 We'll review your submission and get back to you with feedback. Good luck!
