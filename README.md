@@ -67,7 +67,7 @@ Your task is to add a new feature to the app that retrieves and displays the cur
 
 `$ git format-patch origin/main`
 
-This should generate one patch file per commit per commit added. If you have any concern regarding git patch, you can take a look at https://thoughtbot.com/blog/send-a-patch-to-someone-using-git-format-patch
+This should generate one patch file per unpushed commit. If you have any concern regarding git patch, you can take a look at https://thoughtbot.com/blog/send-a-patch-to-someone-using-git-format-patch
 
 3. Send the generated patch file/files as an email attachment to [codesubmissions@itsacheckmate.com](mailto:codesubmissions@itsacheckmate.com) with the subject line "WeatherApp Code Submission - Your Full Name". Replace "Your Full Name" with your actual full name.
 
