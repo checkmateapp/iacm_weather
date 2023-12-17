@@ -1,0 +1,16 @@
+<div class="weather-container">
+  <div class="current-conditions">
+  <h1>Current Weather for <%= @city.titleize %></h1>
+    <% if @weather_data['cod'].to_i == 200 %>
+      <p>Temperature: <%= @weather_data['main']['temp'] %> &deg;C</p>
+      <p>Weather: <%= @weather_data['weather'][0]['description'].titleize %></p>
+      <p>Humidity: <%= @weather_data['main']['humidity'] %></p>
+    <% else %>
+      <p>Weather data not available for <%= @city %></p>
+    <% end %>
+
+    <p>
+      <%= link_to 'Go Back', :back, class: 'btn' %>
+    </p>
+  </div>
+</div>

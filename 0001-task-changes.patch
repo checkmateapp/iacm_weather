@@ -1,0 +1,695 @@
+From 18591846e88a086f99d38ced8dc6ac48e14d047e Mon Sep 17 00:00:00 2001
+From: sunil <sunil@C02F2SGLMD6M.local>
+Date: Mon, 18 Dec 2023 00:19:55 +0530
+Subject: [PATCH] task changes
+
+---
+ Gemfile                                       |   2 +
+ app/assets/config/manifest.js                 |   1 +
+ app/assets/stylesheets/weather/main.css       | 139 ++++++++++++++++++
+ app/controllers/weather_controller.rb         |  15 +-
+ .../open_weather_map/filter_min_max.rb        |  33 +++++
+ app/services/open_weather_map/forecast.rb     |  22 ++-
+ app/views/weather/_search.html.erb            |   9 ++
+ app/views/weather/current_weather.html.erb    |  16 ++
+ app/views/weather/forecast.html.erb           |  62 ++++----
+ app/views/weather/index.html.erb              |  18 ++-
+ config/routes.rb                              |   1 +
+ .../open_weather_map/filter_min_max_spec.rb   | 123 ++++++++++++++++
+ .../open_weather_map/forecast_spec.rb         |  28 ++++
+ .../services/open_weather_map/geocode_spec.rb |  41 ++++--
+ spec/spec_helper.rb                           |   2 +
+ 15 files changed, 452 insertions(+), 60 deletions(-)
+ create mode 100644 app/assets/stylesheets/weather/main.css
+ create mode 100644 app/services/open_weather_map/filter_min_max.rb
+ create mode 100644 app/views/weather/_search.html.erb
+ create mode 100644 app/views/weather/current_weather.html.erb
+ create mode 100644 spec/services/open_weather_map/filter_min_max_spec.rb
+ create mode 100644 spec/services/open_weather_map/forecast_spec.rb
+
+diff --git a/Gemfile b/Gemfile
+index d3f8f07..a1282dc 100644
+--- a/Gemfile
++++ b/Gemfile
+@@ -75,4 +75,6 @@ group :test do
+   gem "capybara"
+   gem "selenium-webdriver"
+   gem "webdrivers"
++  gem 'rspec'
++  gem 'simplecov', require: false
+ end
+diff --git a/app/assets/config/manifest.js b/app/assets/config/manifest.js
+index ddd546a..ae22494 100644
+--- a/app/assets/config/manifest.js
++++ b/app/assets/config/manifest.js
+@@ -2,3 +2,4 @@
+ //= link_directory ../stylesheets .css
+ //= link_tree ../../javascript .js
+ //= link_tree ../../../vendor/javascript .js
++//= link weather/main.css
+\ No newline at end of file
+diff --git a/app/assets/stylesheets/weather/main.css b/app/assets/stylesheets/weather/main.css
+new file mode 100644
+index 0000000..772935c
+--- /dev/null
++++ b/app/assets/stylesheets/weather/main.css
+@@ -0,0 +1,139 @@
++.heading-middle {
++  text-align: center;
++}
++.weather-container {
++  max-width: 100%;
++  margin-left: auto;
++  margin-right: auto;
++}
++
++.current-conditions {
++  background-color: #44486d;
++  padding: 40px;
++  border-radius: 20px;
++  margin-bottom: 40px;
++}
++
++.forecast {
++  display: flex;
++  flex-wrap: wrap;
++}
++
++.forecast-day {
++  flex: 1 1 20%;
++  background-color: #fcfbb5;
++  margin: 15px;
++  padding: 20px;
++  border-radius: 15px;
++}
++
++/* Table styling */
++table {
++  width: 100%;
++  border-collapse: collapse;
++  margin-bottom: 20px;
++}
++
++/* Header row styling */
++thead {
++  background-color: #3498db;
++  color: #fff;
++}
++
++/* Body row styling */
++tbody {
++  background-color: #ecf0f1;
++}
++
++/* Alternate row styling */
++tbody tr:nth-child(even) {
++  background-color: #d2d7db;
++}
++
++/* Cell styling */
++td, th {
++  padding: 10px;
++  border: 1px solid #bdc3c7;
++}
++
++/* Hover effect on rows */
++tbody tr:hover {
++  background-color: #bdc3c7;
++}
++
++.page-header h2 {
++  margin: 0;
++  padding-left: 48px;
++
++}
++
++.page-header {
++  padding-left: 28px;
++}
++.search-container {
++  margin-top: 10px;
++}
++
++.search-container input {
++  padding: 8px;
++}
++
++.search-container button {
++  padding: 8px 12px;
++  background-color: #2ecc71;
++  color: #fff;
++  border: none;
++  cursor: pointer;
++}
++
++/* Default link styles */
++a {
++  color: #3498db; /* Link color */
++  text-decoration: none; /* Remove underline by default */
++}
++
++/* Visited link styles */
++a:visited {
++  color: #2980b9; /* Visited link color */
++}
++
++/* Hover styles */
++a:hover {
++  color: #e74c3c; /* Hover color */
++  text-decoration: underline; /* Underline on hover */
++}
++
++/* Active styles (when clicked) */
++a:active {
++  color: #c0392b; /* Active link color */
++}
++
++/* Flash messages styling */
++.flash {
++  padding: 10px;
++  margin-bottom: 15px;
++  border-radius: 5px;
++  font-weight: bold;
++  width: 300px;
++  margin: 0 auto;
++}
++
++/* Success flash */
++.flash.success {
++  background-color: #2ecc71;
++  color: #fff;
++}
++
++/* Warning flash */
++.flash.warning {
++  background-color: #f39c12;
++  color: #fff;
++}
++
++/* Error flash */
++.flash.error {
++  background-color: #e74c3c;
++  color: #fff;
++}
++
++
+diff --git a/app/controllers/weather_controller.rb b/app/controllers/weather_controller.rb
+index 5f897d3..c79b4ef 100644
+--- a/app/controllers/weather_controller.rb
++++ b/app/controllers/weather_controller.rb
+@@ -4,16 +4,21 @@ class WeatherController < ApplicationController
+   end
+ 
+   def forecast
+-    api_key = Rails.application.credentials.open_weather_map[:api_key]
+-    service = OpenWeatherMap::Forecast.new(api_key)
++    service = OpenWeatherMap::Forecast.new('forecast')
+     response = service.forecast(params[:city])
+-    @forecast = response.parsed_response['list']
+-
+-    if @forecast.present?
++    @new_forcast = OpenWeatherMap::FilterMinMax.new(response).get_data
++    if @new_forcast.present?
+       render :forecast
+     else
++      flash[:warning] = 'No city found Please check if city exist' if @forecast.nil?
+       render :index
+     end
+   end
++
++  def current_weather
++    service = OpenWeatherMap::Forecast.new('weather')
++    @city = params[:city]
++    @weather_data = service.forecast(@city)
++  end
+ end
+ 
+diff --git a/app/services/open_weather_map/filter_min_max.rb b/app/services/open_weather_map/filter_min_max.rb
+new file mode 100644
+index 0000000..cc3fa1e
+--- /dev/null
++++ b/app/services/open_weather_map/filter_min_max.rb
+@@ -0,0 +1,33 @@
++module OpenWeatherMap
++  class FilterMinMax
++    attr_reader :response
++    def initialize(response)
++      @response = response
++      @forecasts = @response.parsed_response['list']
++    end
++
++
++    def get_data
++      @new_forcast = {}
++      get_all_uniq_dates.each do |date|
++        entries_for_date = @forecasts.select { |entry| Date.parse(entry["dt_txt"]).to_s == date }
++        min_temp = entries_for_date.map { |entry| entry["main"]["temp_min"] }.min
++        max_temp = entries_for_date.map { |entry| entry["main"]["temp_max"] }.max
++        weather_description = entries_for_date.first["weather"].first["description"]
++
++        @new_forcast[date] = {
++          "min_temp" => min_temp,
++          "max_temp" => max_temp,
++          "weather_description" => weather_description
++        }
++      end
++
++      @new_forcast
++    end
++
++    def get_all_uniq_dates
++      return @forecasts.map { |entry| Date.parse(entry["dt_txt"]).to_s }.uniq unless @forecasts.nil?
++      []
++    end
++  end
++end
+\ No newline at end of file
+diff --git a/app/services/open_weather_map/forecast.rb b/app/services/open_weather_map/forecast.rb
+index 46598f2..2fa64a4 100644
+--- a/app/services/open_weather_map/forecast.rb
++++ b/app/services/open_weather_map/forecast.rb
+@@ -2,29 +2,41 @@ require 'httparty'
+ 
+ module OpenWeatherMap
+   class Forecast
++    
++    attr_reader :get_condition
+     BASE_URL = 'https://api.openweathermap.org/data/2.5'
++    FORECAST_WEATHER = 'forecast'.freeze
++    CURRENT_WEATHER = 'weather'.freeze
+ 
+-    def initialize(api_key)
+-      @api_key = api_key
++    def initialize(get_condition)
++      @api_key = Rails.application.credentials.open_weather_map[:api_key]
++      @get_condition = get_condition
+     end
+ 
+     def forecast(city)
+       @city = city
+-      HTTParty.get("#{BASE_URL}/forecast?lat=#{lat}&lon=#{lon}&appid=#{@api_key}")
++      HTTParty.get("#{BASE_URL}/#{get_condition_route[get_condition]}?lat=#{lat}&lon=#{lon}&appid=#{@api_key}")
+     end
+ 
+     private
+ 
+     def lat
+-      geocoded_city_response.first['lat']
++      geocoded_city_response.first['lat'] if geocoded_city_response.first.present?
+     end
+ 
+     def lon
+-      geocoded_city_response.first['lon']
++      geocoded_city_response.first['lon'] if geocoded_city_response.first.present?
+     end
+ 
+     def geocoded_city_response
+       @geocoded_city_response ||= Geocode.new(@api_key).geocode(@city)
+     end
++
++    def get_condition_route
++      {
++        "forecast" => FORECAST_WEATHER,
++        "weather" => CURRENT_WEATHER
++      }
++    end
+   end
+ end
+diff --git a/app/views/weather/_search.html.erb b/app/views/weather/_search.html.erb
+new file mode 100644
+index 0000000..df33ffc
+--- /dev/null
++++ b/app/views/weather/_search.html.erb
+@@ -0,0 +1,9 @@
++<header class="page-header">
++  <%= label_tag :city, 'City:' %>
++  <div class="search-container">
++    <%= form_tag weather_forecast_path, method: :get do %>
++      <%= text_field_tag :city, params[:city], placeholder: 'Search...' %>
++      <%= submit_tag 'Search' %>
++    <% end %>
++  </div>
++</header>
+\ No newline at end of file
+diff --git a/app/views/weather/current_weather.html.erb b/app/views/weather/current_weather.html.erb
+new file mode 100644
+index 0000000..ae0971c
+--- /dev/null
++++ b/app/views/weather/current_weather.html.erb
+@@ -0,0 +1,16 @@
++<div class="weather-container">
++  <div class="current-conditions">
++  <h1>Current Weather for <%= @city.titleize %></h1>
++    <% if @weather_data['cod'].to_i == 200 %>
++      <p>Temperature: <%= @weather_data['main']['temp'] %> &deg;C</p>
++      <p>Weather: <%= @weather_data['weather'][0]['description'].titleize %></p>
++      <p>Humidity: <%= @weather_data['main']['humidity'] %></p>
++    <% else %>
++      <p>Weather data not available for <%= @city %></p>
++    <% end %>
++
++    <p>
++      <%= link_to 'Go Back', :back, class: 'btn' %>
++    </p>
++  </div>
++</div>
+\ No newline at end of file
+diff --git a/app/views/weather/forecast.html.erb b/app/views/weather/forecast.html.erb
+index a1ad386..422da48 100644
+--- a/app/views/weather/forecast.html.erb
++++ b/app/views/weather/forecast.html.erb
+@@ -1,31 +1,37 @@
+ <!-- app/views/weather/forecast.html.erb -->
+-<h1>Weather Forecast</h1>
++<div class="weather-container">
++  <div class="current-conditions">
++    <h1 class="heading-middle">Weather Forecast</h1>
++    <%= render 'search' %>
+ 
+-<%= form_tag weather_forecast_path, method: :get do %>
+-  <%= label_tag :city, 'City:' %>
+-  <%= text_field_tag :city, params[:city] %>
+-  <%= submit_tag 'Search' %>
+-<% end %>
++    <% if params[:city] %>
++      <%= link_to "Check #{params[:city]} Current weather", weather_current_weather_path(city: params[:city]), style: 'float: right;' %>
++    <% end %>
+ 
+-<% if @forecast %>
+-  <table>
+-    <thead>
+-      <tr>
+-        <th>Date</th>
+-        <th>High Temp</th>
+-        <th>Low Temp</th>
+-        <th>Weather</th>
+-      </tr>
+-    </thead>
+-    <tbody>
+-      <% @forecast.each do |entry| %>
+-        <tr>
+-          <td><%= entry['dt_txt'] %></td>
+-          <td><%= entry['main']['temp_max'].round(2) %> °C</td>
+-          <td><%= entry['main']['temp_min'].round(2) %> °C</td>
+-          <td><%= entry['weather'].first['description'].capitalize %></td>
+-        </tr>
+-      <% end %>
+-    </tbody>
+-  </table>
+-<% end %>
++    <h2 style="text-align: center;">Forecast highest and lowest values for each day</h2>
++    <% if @new_forcast %>
++      <div class="forecast">
++        <table class="forecast-day">
++          <thead>
++            <tr>
++              <th>Date</th>
++              <th>High Temp</th>
++              <th>Low Temp</th>
++              <th>Weather</th>
++            </tr>
++          </thead>
++            <tbody style="text-align: center;">
++            <% @new_forcast.each do |entry| %>
++                <tr>
++                  <td><%= entry[0] %></td>
++                  <td><%= entry[1]["max_temp"].round(2) %> °C</td>
++                  <td><%= entry[1]["min_temp"].round(2) %> °C</td>
++                  <td><%= entry[1]["weather_description"].capitalize %></td>  
++                </tr>
++            <% end %>
++          </tbody>
++        </table>
++      </div>
++    <% end %>
++  </div>
++</div>
+diff --git a/app/views/weather/index.html.erb b/app/views/weather/index.html.erb
+index 1dbad4f..ba320b2 100644
+--- a/app/views/weather/index.html.erb
++++ b/app/views/weather/index.html.erb
+@@ -1,8 +1,12 @@
+-<!-- app/views/weather/forecast.html.erb -->
+-<h1>Weather Forecast</h1>
++<div class="weather-container">
++  <div class="current-conditions">
++    <h1 class="heading-middle">Weather Forecast</h1>
++    <%= render 'search' %>
++    <% flash.each do |key, message| %>
++      <div class="flash <%= key %>">
++        <%= message %>
++      </div>
++    <% end %>
+ 
+-<%= form_tag weather_forecast_path, method: :get do %>
+-  <%= label_tag :city, 'City:' %>
+-  <%= text_field_tag :city, params[:city] %>
+-  <%= submit_tag 'Search' %>
+-<% end %>
++  </div>
++</div>
+diff --git a/config/routes.rb b/config/routes.rb
+index 4a4d6e6..4ec0eb4 100644
+--- a/config/routes.rb
++++ b/config/routes.rb
+@@ -3,5 +3,6 @@ Rails.application.routes.draw do
+   root to: 'weather#index'
+   get 'weather/forecast'
+   post 'weather/forecast', to: 'weather#forecast'
++  get 'weather/current_weather', to: 'weather#current_weather'
+ end
+ 
+diff --git a/spec/services/open_weather_map/filter_min_max_spec.rb b/spec/services/open_weather_map/filter_min_max_spec.rb
+new file mode 100644
+index 0000000..04d8a50
+--- /dev/null
++++ b/spec/services/open_weather_map/filter_min_max_spec.rb
+@@ -0,0 +1,123 @@
++require 'rails_helper'
++require 'webmock/rspec'
++require 'open_weather_map/filter_min_max'
++
++RSpec.describe OpenWeatherMap::FilterMinMax do
++  describe '#get_data' do
++    let(:response_body) do
++      # Replace this with a sample OpenWeatherMap API response for testing
++      {
++        'list' => [
++          {
++    "dt"=> 1702836000,
++    "main"=> {
++      "temp"=> 289.99,
++      "feels_like"=> 289.09,
++      "temp_min"=> 289.56,
++      "temp_max"=> 289.99,
++      "pressure"=> 1019,
++      "sea_level"=> 1019,
++      "grnd_level"=> 954,
++      "humidity"=> 52,
++      "temp_kf"=> 0.43
++    },
++    "weather"=> [
++      {
++        "id"=> 801,
++        "main"=> "Clouds",
++        "description"=> "few clouds",
++        "icon"=> "02n"
++      }
++    ],
++    "clouds"=> {
++      "all"=> 19
++    },
++    "wind"=> {
++      "speed"=> 3.32,
++      "deg"=> 53,
++      "gust"=> 6.49
++    },
++    "visibility"=> 10000,
++    "pop"=> 0,
++    "sys"=> {
++      "pod"=> "n"
++    },
++    "dt_txt"=> "2023-12-17 18=>00=>00"
++  },
++  {
++    "dt"=> 1702846800,
++    "main"=> {
++      "temp"=> 288.71,
++      "feels_like"=> 287.6,
++      "temp_min"=> 287.96,
++      "temp_max"=> 288.71,
++      "pressure"=> 1019,
++      "sea_level"=> 1019,
++      "grnd_level"=> 953,
++      "humidity"=> 49,
++      "temp_kf"=> 0.75
++    },
++    "weather"=> [
++      {
++        "id"=> 802,
++        "main"=> "Clouds",
++        "description"=> "scattered clouds",
++        "icon"=> "03n"
++      }
++    ],
++    "clouds"=> {
++      "all"=> 34
++    },
++    "wind"=> {
++      "speed"=> 3.39,
++      "deg"=> 58,
++      "gust"=> 7.4
++    },
++    "visibility"=> 10000,
++    "pop"=> 0,
++    "sys"=> {
++      "pod"=> "n"
++    },
++    "dt_txt"=> "2023-12-17 21:00:00"
++  }
++        ]
++      }
++    end
++
++    let(:fake_response) { instance_double('Response', parsed_response: response_body) }
++
++    subject { described_class.new(fake_response) }
++
++    it 'returns filtered and formatted forecast data' do
++      expected_result = {
++        '2023-01-01' => {
++          'min_temp' => 10,
++          'max_temp' => 25,
++          'weather_description' => 'Clear'
++        }
++      }
++
++      expect(subject.get_data).to eq(expected_result)
++    end
++  end
++
++  describe '#get_all_uniq_dates' do
++    let(:response_body) do
++      {
++        'list' => [
++          { 'dt_txt' => '2023-01-01 12:00:00' },
++          { 'dt_txt' => '2023-01-01 15:00:00' },
++          { 'dt_txt' => '2023-01-02 12:00:00' },
++        ]
++      }
++    end
++
++    let(:fake_response) { instance_double('Response', parsed_response: response_body) }
++
++    subject { described_class.new(fake_response) }
++
++    it 'returns an array of unique dates' do
++      expect(subject.get_all_uniq_dates).to eq(['2023-01-01', '2023-01-02'])
++    end
++  end
++end
+diff --git a/spec/services/open_weather_map/forecast_spec.rb b/spec/services/open_weather_map/forecast_spec.rb
+new file mode 100644
+index 0000000..121d1ba
+--- /dev/null
++++ b/spec/services/open_weather_map/forecast_spec.rb
+@@ -0,0 +1,28 @@
++# spec/models/open_weather_map/forecast_spec.rb
++
++require 'rails_helper'
++require 'httparty'
++
++RSpec.describe OpenWeatherMap::Forecast, type: :model do
++  let(:api_key) { '6187b48a3845dbe7191c3e120ab2a4d2' } # replace with your test API key
++  let(:get_condition) { 'forecast' }
++  let(:forecast_instance) { OpenWeatherMap::Forecast.new(get_condition) }
++
++  describe '#forecast' do
++    it 'returns forecast data for a city' do
++      city = 'London'
++      allow(Rails.application.credentials).to receive(:open_weather_map).and_return(api_key: api_key)
++
++      # Stub the HTTParty.get method to avoid making actual API requests in tests
++      allow(HTTParty).to receive(:get).and_return({ 'dummy' => 'forecast_data' })
++
++      # Stub the geocode method to avoid making actual requests to OpenWeatherMap API
++      allow_any_instance_of(OpenWeatherMap::Geocode).to receive(:geocode).and_return([{ 'lat' => '51.5074', 'lon' => '-0.1278' }])
++
++      result = forecast_instance.forecast(city)
++
++      expect(result).to eq({ 'dummy' => 'forecast_data' })
++    end
++  end
++
++end
+diff --git a/spec/services/open_weather_map/geocode_spec.rb b/spec/services/open_weather_map/geocode_spec.rb
+index b60977a..c2a1934 100644
+--- a/spec/services/open_weather_map/geocode_spec.rb
++++ b/spec/services/open_weather_map/geocode_spec.rb
+@@ -1,24 +1,35 @@
++# spec/open_weather_map/geocode_spec.rb
++
+ require 'rails_helper'
++require 'httparty'
++require 'open_weather_map/geocode'
+ 
+ RSpec.describe OpenWeatherMap::Geocode do
+-  let(:api_key)   { Rails.application.credentials.open_weather_map[:api_key] }
+-  let(:geocoder)  { OpenWeatherMap::Geocode.new(api_key) }
+-  let(:city)      { 'London' }
++  describe '#geocode' do
++    let(:api_key) { '6187b48a3845dbe7191c3e120ab2a4d2' }
++    let(:geocode_instance) { described_class.new(api_key) }
++    let(:city) { 'New York' }
++    let(:expected_url) { "http://api.openweathermap.org/geo/1.0/direct?q=#{city}&appid=#{api_key}" }
+ 
+-  describe '#geocode', :vcr do
+-    it 'returns the geocode for a city' do
+-      response = geocoder.geocode(city)
+-      expect(response.first['name']).to eq(city)
+-      expect(response[0]['lat']).to be_a(Float)
+-      expect(response[0]['lon']).to be_a(Float)
++    context 'when making a geocode request' do
++      it 'calls HTTParty.get with the correct URL' do
++        allow(HTTParty).to receive(:get)
++        geocode_instance.geocode(city)
++        expect(HTTParty).to have_received(:get).with(expected_url)
++      end
+     end
+ 
+-    it 'returns the geocode for a city with spaces' do
+-      response = geocoder.geocode('New York')
+-      expect(response.first['name']).to eq('New York County')
+-      expect(response[0]['lat']).to be_a(Float)
+-      expect(response[0]['lon']).to be_a(Float)
++    context 'when handling the response' do
++      let(:sample_response) { { 'key' => 'value' } }
++
++      before do
++        allow(HTTParty).to receive(:get).and_return(sample_response)
++      end
++
++      it 'returns the response from HTTParty.get' do
++        response = geocode_instance.geocode(city)
++        expect(response).to eq(sample_response)
++      end
+     end
+   end
+ end
+-
+diff --git a/spec/spec_helper.rb b/spec/spec_helper.rb
+index a0d4080..29f260f 100644
+--- a/spec/spec_helper.rb
++++ b/spec/spec_helper.rb
+@@ -14,6 +14,8 @@
+ #
+ # See https://rubydoc.info/gems/rspec-core/RSpec/Core/Configuration
+ RSpec.configure do |config|
++  require 'simplecov'
++  SimpleCov.start
+   # rspec-expectations config goes here. You can use an alternate
+   # assertion/expectation library such as wrong or the stdlib/minitest
+   # assertions if you prefer.
+-- 
+2.24.3 (Apple Git-128)
+

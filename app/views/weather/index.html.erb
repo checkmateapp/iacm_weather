@@ -1,8 +1,12 @@
-<!-- app/views/weather/forecast.html.erb -->
-<h1>Weather Forecast</h1>
+<div class="weather-container">
+  <div class="current-conditions">
+    <h1 class="heading-middle">Weather Forecast</h1>
+    <%= render 'search' %>
+    <% flash.each do |key, message| %>
+      <div class="flash <%= key %>">
+        <%= message %>
+      </div>
+    <% end %>
 
-<%= form_tag weather_forecast_path, method: :get do %>
-  <%= label_tag :city, 'City:' %>
-  <%= text_field_tag :city, params[:city] %>
-  <%= submit_tag 'Search' %>
-<% end %>
+  </div>
+</div>
