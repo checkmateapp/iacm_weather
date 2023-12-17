@@ -1,31 +1,37 @@
 <!-- app/views/weather/forecast.html.erb -->
-<h1>Weather Forecast</h1>
+<div class="weather-container">
+  <div class="current-conditions">
+    <h1 class="heading-middle">Weather Forecast</h1>
+    <%= render 'search' %>
 
-<%= form_tag weather_forecast_path, method: :get do %>
-  <%= label_tag :city, 'City:' %>
-  <%= text_field_tag :city, params[:city] %>
-  <%= submit_tag 'Search' %>
-<% end %>
+    <% if params[:city] %>
+      <%= link_to "Check #{params[:city]} Current weather", weather_current_weather_path(city: params[:city]), style: 'float: right;' %>
+    <% end %>
 
-<% if @forecast %>
-  <table>
-    <thead>
-      <tr>
-        <th>Date</th>
-        <th>High Temp</th>
-        <th>Low Temp</th>
-        <th>Weather</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% @forecast.each do |entry| %>
-        <tr>
-          <td><%= entry['dt_txt'] %></td>
-          <td><%= entry['main']['temp_max'].round(2) %> °C</td>
-          <td><%= entry['main']['temp_min'].round(2) %> °C</td>
-          <td><%= entry['weather'].first['description'].capitalize %></td>
-        </tr>
-      <% end %>
-    </tbody>
-  </table>
-<% end %>
+    <h2 style="text-align: center;">Forecast highest and lowest values for each day</h2>
+    <% if @new_forcast %>
+      <div class="forecast">
+        <table class="forecast-day">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>High Temp</th>
+              <th>Low Temp</th>
+              <th>Weather</th>
+            </tr>
+          </thead>
+            <tbody style="text-align: center;">
+            <% @new_forcast.each do |entry| %>
+                <tr>
+                  <td><%= entry[0] %></td>
+                  <td><%= entry[1]["max_temp"].round(2) %> °C</td>
+                  <td><%= entry[1]["min_temp"].round(2) %> °C</td>
+                  <td><%= entry[1]["weather_description"].capitalize %></td>  
+                </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </div>
+</div>

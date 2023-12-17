@@ -1,0 +1,9 @@
+<header class="page-header">
+  <%= label_tag :city, 'City:' %>
+  <div class="search-container">
+    <%= form_tag weather_forecast_path, method: :get do %>
+      <%= text_field_tag :city, params[:city], placeholder: 'Search...' %>
+      <%= submit_tag 'Search' %>
+    <% end %>
+  </div>
+</header>

@@ -1,24 +1,35 @@
+# spec/open_weather_map/geocode_spec.rb
+
 require 'rails_helper'
+require 'httparty'
+require 'open_weather_map/geocode'
 
 RSpec.describe OpenWeatherMap::Geocode do
-  let(:api_key)   { Rails.application.credentials.open_weather_map[:api_key] }
-  let(:geocoder)  { OpenWeatherMap::Geocode.new(api_key) }
-  let(:city)      { 'London' }
+  describe '#geocode' do
+    let(:api_key) { '6187b48a3845dbe7191c3e120ab2a4d2' }
+    let(:geocode_instance) { described_class.new(api_key) }
+    let(:city) { 'New York' }
+    let(:expected_url) { "http://api.openweathermap.org/geo/1.0/direct?q=#{city}&appid=#{api_key}" }
 
-  describe '#geocode', :vcr do
-    it 'returns the geocode for a city' do
-      response = geocoder.geocode(city)
-      expect(response.first['name']).to eq(city)
-      expect(response[0]['lat']).to be_a(Float)
-      expect(response[0]['lon']).to be_a(Float)
+    context 'when making a geocode request' do
+      it 'calls HTTParty.get with the correct URL' do
+        allow(HTTParty).to receive(:get)
+        geocode_instance.geocode(city)
+        expect(HTTParty).to have_received(:get).with(expected_url)
+      end
     end
 
-    it 'returns the geocode for a city with spaces' do
-      response = geocoder.geocode('New York')
-      expect(response.first['name']).to eq('New York County')
-      expect(response[0]['lat']).to be_a(Float)
-      expect(response[0]['lon']).to be_a(Float)
+    context 'when handling the response' do
+      let(:sample_response) { { 'key' => 'value' } }
+
+      before do
+        allow(HTTParty).to receive(:get).and_return(sample_response)
+      end
+
+      it 'returns the response from HTTParty.get' do
+        response = geocode_instance.geocode(city)
+        expect(response).to eq(sample_response)
+      end
     end
   end
 end
-
